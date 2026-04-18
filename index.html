@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자녀 복리 계산기 — 아이 주식계좌 시뮬레이션 | 개발하는고양이</title>
+<meta name="description" content="자녀 명의 투자계좌 복리 효과를 시뮬레이션합니다. 적립식·일시금 모두 지원, 증여세 자동 계산.">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&family=Noto+Serif+KR:wght@600;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface2: #F2F0EC;
+  --text: #1A1A1A;
+  --muted: #888888;
+  --border: #E5E5E5;
+  --primary: #1E5BA8;
+  --accent: #D4A017;
+  --accent-soft: rgba(212,160,23,0.1);
+  --warn: #C0392B;
+  --green: #2E7D32;
+  --light-blue: #B8C5D6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans KR', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.7;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 20px 16px 64px; }
+
+/* Header */
+.header { text-align: center; padding: 40px 0 24px; }
+.header .avatar { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent); margin-bottom: 14px; }
+.header h1 { font-family: 'Noto Serif KR', serif; font-size: 26px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; }
+.header p { color: var(--muted); font-size: 14px; font-weight: 300; }
+.disclaimer {
+  font-size: 11px; color: var(--muted); background: var(--surface2);
+  border-radius: 8px; padding: 10px 14px; margin: 16px 0 0; line-height: 1.6;
+}
+.badge { display: inline-block; border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px; font-size: 11px; color: var(--muted); margin-top: 12px; }
+
+/* Blog Buttons */
+.btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.blog-btn { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 22px; border-radius: 8px; transition: all 0.2s; }
+.blog-btn:hover { transform: translateY(-1px); }
+.blog-btn.primary { background: var(--primary); color: #fff; }
+.blog-btn.primary:hover { box-shadow: 0 4px 16px rgba(30,91,168,0.3); }
+.blog-btn.secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.blog-btn.secondary:hover { border-color: var(--muted); color: var(--text); }
+.blog-btn svg { width: 15px; height: 15px; }
+.blog-btn.primary svg { fill: #fff; }
+.blog-btn.secondary svg { fill: var(--muted); }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.tab { flex: 1; padding: 13px 8px; text-align: center; cursor: pointer; font-size: 14px; font-weight: 400; color: var(--muted); transition: all 0.2s; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+.tab:hover:not(.active) { color: var(--text); }
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+
+/* Slider */
+.slider-group { margin-bottom: 20px; }
+.slider-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.slider-label span { font-size: 13px; color: var(--muted); }
+.slider-value { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; }
+input[type="range"] { width: 100%; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+/* Radio buttons */
+.radio-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.radio-group label { flex: 1; min-width: 60px; }
+.radio-group input { display: none; }
+.radio-group .radio-btn { display: block; text-align: center; padding: 10px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; color: var(--muted); }
+.radio-group input:checked + .radio-btn { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Toggle */
+.toggle-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: 13px; color: var(--muted); }
+.toggle { width: 40px; height: 22px; background: var(--border); border-radius: 11px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--primary); }
+.toggle::after { content: ''; position: absolute; width: 16px; height: 16px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s; }
+.toggle.on::after { transform: translateX(18px); }
+
+/* Results */
+.result-big { text-align: center; padding: 24px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 20px 0; }
+.result-big .label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.result-big .amount { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 500; color: var(--primary); }
+.result-big .sub { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.result-big .real-value { font-size: 13px; color: var(--green); margin-top: 4px; }
+
+/* Warning */
+.warn-box { background: rgba(212,160,23,0.08); border: 1px solid rgba(212,160,23,0.25); border-radius: 10px; padding: 14px 16px; margin: 12px 0; font-size: 13px; color: var(--accent); }
+.warn-box.danger { background: rgba(192,57,43,0.06); border-color: rgba(192,57,43,0.2); color: var(--warn); }
+
+/* Chart */
+.chart-wrap { position: relative; height: 280px; margin: 20px 0; }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { background: var(--surface2); padding: 10px 8px; text-align: center; color: var(--muted); font-weight: 400; }
+.data-table td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--border); }
+.data-table .total-row { font-weight: 700; background: var(--accent-soft); }
+
+/* Gift event inputs */
+.gift-events { margin: 16px 0; }
+.gift-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.gift-row input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Noto Sans KR', sans-serif; }
+.gift-row input:focus { outline: none; border-color: var(--primary); }
+.btn-add { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px dashed var(--border); border-radius: 8px; background: none; cursor: pointer; color: var(--muted); font-size: 13px; transition: all 0.15s; }
+.btn-add:hover { border-color: var(--primary); color: var(--primary); }
+.btn-remove { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--warn); font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-remove:hover { background: rgba(192,57,43,0.06); }
+
+/* Footer */
+.footer { text-align: center; padding: 32px 0 10px; border-top: 1px solid var(--border); margin-top: 36px; }
+.footer p { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.8; }
+
+/* Section */
+.section { display: none; }
+.section.active { display: block; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.section.active { animation: fadeUp 0.3s ease; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .header h1 { font-size: 22px; }
+  .result-big .amount { font-size: 26px; }
+  .gift-row { flex-wrap: wrap; }
+  .gift-row input { min-width: 0; }
+  .btn-group { flex-direction: column; align-items: center; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <img src="profile.jpg" alt="개발하는고양이" class="avatar">
+    <h1>자녀 복리 계산기</h1>
+    <p>아이 투자계좌, 지금 시작하면 얼마가 될까?</p>
+    <div class="badge">개발하는고양이</div>
+    <div class="btn-group">
+      <a href="https://blog.naver.com/economydev" target="_blank" class="blog-btn primary">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        이 글 원문 보기
+      </a>
+      <a href="https://blog.naver.com/economydev" target="_blank" class="blog-btn secondary">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        블로그 홈
+      </a>
+    </div>
+    <div class="disclaimer">본 계산기는 시뮬레이션 목적이며, 수익률·세율은 변경될 수 있습니다. 실제 투자·증여는 전문가 상담 권장.</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('monthly', event)">적립식 (매월)</button>
+    <button class="tab" onclick="showTab('lumpsum', event)">일시금 + 추가</button>
+  </div>
+
+  <!-- ═══ TAB 1: 적립식 ═══ -->
+  <div id="tab-monthly" class="section active">
+    <div class="card">
+      <div class="slider-group">
+        <div class="slider-label"><span>아이 현재 나이</span><div class="slider-value" id="v-m-age">10세</div></div>
+        <input type="range" id="s-m-age" min="0" max="17" value="10" step="1" oninput="calcMonthly()">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>월 납입액</span><div class="slider-value" id="v-m-monthly">10만 원</div></div>
+        <input type="range" id="s-m-monthly" min="1" max="100" value="10" step="1" oninput="calcMonthly()">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>연 평균 기대수익률</span><div class="slider-value" id="v-m-rate">7%</div></div>
+        <input type="range" id="s-m-rate" min="1" max="12" value="7" step="0.5" oninput="calcMonthly()">
+      </div>
+      <div style="margin-bottom:8px;"><span style="font-size:13px; color:var(--muted);">목표 시점 (자녀 나이)</span></div>
+      <div class="radio-group" id="goal-radios">
+        <label><input type="radio" name="m-goal" value="20" onchange="calcMonthly()"><span class="radio-btn">20세</span></label>
+        <label><input type="radio" name="m-goal" value="25" onchange="calcMonthly()"><span class="radio-btn">25세</span></label>
+        <label><input type="radio" name="m-goal" value="30" checked onchange="calcMonthly()"><span class="radio-btn">30세</span></label>
+        <label><input type="radio" name="m-goal" value="40" onchange="calcMonthly()"><span class="radio-btn">40세</span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle" id="t-m-inflation" onclick="toggleMInflation()"></div>
+        <span>인플레이션 보정 (물가 2.5% 차감)</span>
+      </div>
+    </div>
+
+    <div class="result-big" id="m-result">
+      <div class="label">30세 시점 예상 자산</div>
+      <div class="amount" id="m-result-amount">0</div>
+      <div class="sub" id="m-result-detail">원금 0만 + 운용수익 0만</div>
+      <div class="real-value" id="m-result-real" style="display:none;">현재 화폐가치 기준 약 0만</div>
+    </div>
+
+    <div class="warn-box" id="m-gift-warn" style="display:none;"></div>
+
+    <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+  </div>
+
+  <!-- ═══ TAB 2: 일시금 + 추가 ═══ -->
+  <div id="tab-lumpsum" class="section">
+    <div class="card">
+      <div class="slider-group">
+        <div class="slider-label"><span>아이 현재 나이</span><div class="slider-value" id="v-l-age">10세</div></div>
+        <input type="range" id="s-l-age" min="0" max="17" value="10" step="1" oninput="calcLumpsum()">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>연 평균 기대수익률</span><div class="slider-value" id="v-l-rate">7%</div></div>
+        <input type="range" id="s-l-rate" min="1" max="12" value="7" step="0.5" oninput="calcLumpsum()">
+      </div>
+      <div style="margin-bottom:8px;"><span style="font-size:13px; color:var(--muted);">목표 시점 (자녀 나이)</span></div>
+      <div class="radio-group">
+        <label><input type="radio" name="l-goal" value="20" onchange="calcLumpsum()"><span class="radio-btn">20세</span></label>
+        <label><input type="radio" name="l-goal" value="25" onchange="calcLumpsum()"><span class="radio-btn">25세</span></label>
+        <label><input type="radio" name="l-goal" value="30" checked onchange="calcLumpsum()"><span class="radio-btn">30세</span></label>
+        <label><input type="radio" name="l-goal" value="40" onchange="calcLumpsum()"><span class="radio-btn">40세</span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle" id="t-l-inflation" onclick="toggleLInflation()"></div>
+        <span>인플레이션 보정 (물가 2.5% 차감)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px;">증여 이벤트</div>
+      <div class="gift-events" id="gift-events"></div>
+      <button class="btn-add" id="btn-add-gift" onclick="addGiftRow()">+ 증여 시점 추가</button>
+    </div>
+
+    <div class="result-big" id="l-result">
+      <div class="label">30세 시점 예상 자산</div>
+      <div class="amount" id="l-result-amount">0</div>
+      <div class="sub" id="l-result-detail">총 증여액 0만</div>
+      <div class="real-value" id="l-result-real" style="display:none;">현재 화폐가치 기준 약 0만</div>
+    </div>
+
+    <div class="card" id="l-event-table-wrap" style="padding:0; overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>증여 시점</th><th>증여액</th><th>보유 기간</th><th>도달액</th></tr></thead>
+        <tbody id="l-event-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="warn-box" id="l-gift-tax-box" style="display:none;"></div>
+
+    <div class="chart-wrap"><canvas id="chart-lumpsum"></canvas></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <img src="profile.jpg" alt="개발하는고양이" class="avatar" style="width:52px;height:52px;margin-bottom:10px;">
+    <p style="font-size:15px;color:var(--text);margin-bottom:4px;font-weight:700;font-family:'Noto Serif KR',serif;">자녀 투자 시리즈 더 보기</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">아이 주식계좌 개설부터 증여세 절세까지</p>
+    <div class="btn-group">
+      <a href="https://blog.naver.com/economydev" target="_blank" class="blog-btn primary">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        이 글 원문 보기
+      </a>
+      <a href="https://blog.naver.com/economydev" target="_blank" class="blog-btn secondary">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        블로그 홈
+      </a>
+    </div>
+    <p style="margin-top:20px;">※ 이 계산기는 시뮬레이션 목적이며, 실제 수익률·세율은 변경될 수 있습니다.<br>투자·증여 판단은 전문가와 상담하시기 바랍니다.</p>
+  </div>
+</div>
+
+<script>
+/* ─── 공통 ─── */
+let chartM = null, chartL = null;
+let mInflation = false, lInflation = false;
+const INFLATION_RATE = 0.025;
+
+const C = {
+  primary: '#1E5BA8', accent: '#D4A017', warn: '#C0392B',
+  green: '#2E7D32', lightBlue: '#B8C5D6', muted: '#888888',
+  grid: 'rgba(0,0,0,0.06)', label: '#888888'
+};
+
+function fmt(v) {
+  if (Math.abs(v) >= 10000) return (v / 10000).toFixed(2) + '억';
+  return Math.round(v).toLocaleString() + '만';
+}
+
+function showTab(id, e) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (e) e.target.classList.add('active');
+  else document.querySelector('[onclick*="showTab(\'' + id + '\')"]').classList.add('active');
+  history.replaceState(null, '', '#' + id);
+  saveState();
+}
+
+function toggleMInflation() { mInflation = !mInflation; document.getElementById('t-m-inflation').classList.toggle('on'); calcMonthly(); }
+function toggleLInflation() { lInflation = !lInflation; document.getElementById('t-l-inflation').classList.toggle('on'); calcLumpsum(); }
+
+/* ─── 계산 함수 (단위 테스트 가능) ─── */
+
+/**
+ * 적립식 복리 계산 (매월 말 적립, 월 단위 복리)
+ * @param {number} monthly - 월 납입액 (만원)
+ * @param {number} annualRate - 연 수익률 (%)
+ * @param {number} months - 총 개월 수
+ * @returns {number} 최종 금액 (만원)
+ */
+function calcCompoundMonthly(monthly, annualRate, months) {
+  const r = annualRate / 100 / 12;
+  if (r === 0) return monthly * months;
+  return monthly * ((Math.pow(1 + r, months) - 1) / r);
+}
+
+/**
+ * 일시금 복리 계산 (연 단위 복리)
+ * @param {number} principal - 원금 (만원)
+ * @param {number} annualRate - 연 수익률 (%)
+ * @param {number} years - 보유 기간 (년)
+ * @returns {number} 최종 금액 (만원)
+ */
+function calcCompoundLump(principal, annualRate, years) {
+  if (years <= 0) return principal;
+  return principal * Math.pow(1 + annualRate / 100, years);
+}
+
+/**
+ * 증여세 계산 (2026년 현행 기준)
+ * @param {number} amount - 증여액 (만원)
+ * @param {number} recipientAge - 수증자 나이
+ * @param {number} prevGifts10y - 직전 10년 이내 기 증여 합계 (만원)
+ * @returns {{tax: number, taxable: number, exemption: number, detail: string}}
+ */
+function calcGiftTax(amount, recipientAge, prevGifts10y) {
+  const exemption = recipientAge < 19 ? 2000 : 5000;
+  const totalGifts = amount + prevGifts10y;
+  const taxable = Math.max(0, totalGifts - exemption);
+
+  let tax = 0, detail = '';
+  if (taxable <= 0) {
+    detail = '공제 한도 내 (' + (recipientAge < 19 ? '미성년 2,000만' : '성년 5,000만') + '/10년)';
+  } else if (taxable <= 10000) {
+    tax = taxable * 0.1;
+    detail = '과세표준 ' + fmt(taxable) + ' × 10%';
+  } else if (taxable <= 50000) {
+    tax = taxable * 0.2 - 1000;
+    detail = '과세표준 ' + fmt(taxable) + ' × 20% - 1,000만';
+  } else if (taxable <= 100000) {
+    tax = taxable * 0.3 - 6000;
+    detail = '과세표준 ' + fmt(taxable) + ' × 30% - 6,000만';
+  } else if (taxable <= 300000) {
+    tax = taxable * 0.4 - 16000;
+    detail = '과세표준 ' + fmt(taxable) + ' × 40% - 1.6억';
+  } else {
+    tax = taxable * 0.5 - 46000;
+    detail = '과세표준 ' + fmt(taxable) + ' × 50% - 4.6억';
+  }
+
+  return { tax: Math.max(0, tax), taxable, exemption, detail };
+}
+
+/**
+ * 인플레이션 보정 (현재 화폐가치 환산)
+ * @param {number} futureValue - 미래 금액
+ * @param {number} years - 기간 (년)
+ * @returns {number} 현재 화폐가치 기준 금액
+ */
+function adjustInflation(futureValue, years) {
+  return futureValue / Math.pow(1 + INFLATION_RATE, years);
+}
+
+/* ─── TAB 1: 적립식 ─── */
+function calcMonthly() {
+  const age = parseInt(document.getElementById('s-m-age').value);
+  const monthly = parseInt(document.getElementById('s-m-monthly').value);
+  const rate = parseFloat(document.getElementById('s-m-rate').value);
+  const goalEl = document.querySelector('input[name="m-goal"]:checked');
+  const goal = goalEl ? parseInt(goalEl.value) : 30;
+
+  document.getElementById('v-m-age').textContent = age + '세';
+  document.getElementById('v-m-monthly').textContent = monthly + '만 원';
+  document.getElementById('v-m-rate').textContent = rate + '%';
+
+  const months = Math.max(0, (goal - age) * 12);
+  const total = calcCompoundMonthly(monthly, rate, months);
+  const principal = monthly * months;
+  const gain = total - principal;
+  const years = goal - age;
+
+  document.querySelector('#m-result .label').textContent = goal + '세 시점 예상 자산';
+  document.getElementById('m-result-amount').textContent = fmt(total);
+  document.getElementById('m-result-detail').textContent = '원금 ' + fmt(principal) + ' + 운용수익 ' + fmt(gain);
+
+  // 인플레이션
+  const realEl = document.getElementById('m-result-real');
+  if (mInflation && years > 0) {
+    realEl.style.display = '';
+    realEl.textContent = '현재 화폐가치 기준 약 ' + fmt(adjustInflation(total, years));
+  } else {
+    realEl.style.display = 'none';
+  }
+
+  // 증여공제 경고
+  const warnEl = document.getElementById('m-gift-warn');
+  const minorLimit = 2000;
+  const adultLimit = 5000;
+  // 미성년 기간 납입액
+  const minorMonths = Math.max(0, Math.min(19, goal) - age) * 12;
+  const minorPrincipal = monthly * Math.min(months, minorMonths);
+  const adultPrincipal = principal - minorPrincipal;
+
+  let warnings = [];
+  if (minorPrincipal > minorLimit) {
+    warnings.push('미성년 기간 납입 누적 ' + fmt(minorPrincipal) + ' → 공제한도 2,000만 초과 (' + fmt(minorPrincipal - minorLimit) + ' 증여 신고 필요)');
+  }
+  if (adultPrincipal > adultLimit) {
+    warnings.push('성년 기간 납입 누적 ' + fmt(adultPrincipal) + ' → 공제한도 5,000만/10년 초과 주의');
+  }
+  if (warnings.length > 0) {
+    warnEl.style.display = '';
+    warnEl.innerHTML = '⚠️ 증여공제 한도 주의<br>' + warnings.join('<br>');
+  } else {
+    warnEl.style.display = 'none';
+  }
+
+  // 시작 연령별 비교 차트
+  const ages = [0, 5, 10, 15].filter(a => a <= goal - 3);
+  if (!ages.includes(age)) ages.push(age);
+  ages.sort((a, b) => a - b);
+
+  const chartLabels = ages.map(a => a + '세 시작');
+  const chartData = ages.map(a => Math.round(calcCompoundMonthly(monthly, rate, (goal - a) * 12)));
+  const chartColors = ages.map(a => a === age ? C.accent : C.lightBlue);
+
+  if (chartM) chartM.destroy();
+  chartM = new Chart(document.getElementById('chart-monthly'), {
+    type: 'bar',
+    data: {
+      labels: chartLabels,
+      datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: 6, barThickness: 40 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+      scales: {
+        x: { ticks: { color: C.label, font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { color: C.muted, font: { size: 10 }, callback: v => fmt(v) }, grid: { color: C.grid } }
+      }
+    }
+  });
+
+  saveState();
+}
+
+/* ─── TAB 2: 일시금 ─── */
+let giftRows = [];
+
+function addGiftRow(ageVal, amountVal) {
+  if (giftRows.length >= 5) return;
+  const defaultAge = parseInt(document.getElementById('s-l-age').value) || 10;
+  const row = { age: ageVal ?? defaultAge, amount: amountVal ?? 0 };
+  giftRows.push(row);
+  renderGiftRows();
+  calcLumpsum();
+}
+
+function removeGiftRow(idx) {
+  giftRows.splice(idx, 1);
+  renderGiftRows();
+  calcLumpsum();
+}
+
+function renderGiftRows() {
+  const container = document.getElementById('gift-events');
+  container.innerHTML = giftRows.map((r, i) =>
+    '<div class="gift-row">' +
+      '<input type="number" min="0" max="60" value="' + r.age + '" placeholder="나이" onchange="giftRows[' + i + '].age=parseInt(this.value)||0;calcLumpsum()" style="max-width:80px;">' +
+      '<span style="font-size:12px;color:var(--muted);flex-shrink:0;">세에</span>' +
+      '<input type="number" min="0" max="500000" step="100" value="' + r.amount + '" placeholder="금액(만원)" onchange="giftRows[' + i + '].amount=parseInt(this.value)||0;calcLumpsum()">' +
+      '<span style="font-size:12px;color:var(--muted);flex-shrink:0;">만 원</span>' +
+      (giftRows.length > 1 ? '<button class="btn-remove" onclick="removeGiftRow(' + i + ')">×</button>' : '<div style="width:28px;"></div>') +
+    '</div>'
+  ).join('');
+  document.getElementById('btn-add-gift').style.display = giftRows.length >= 5 ? 'none' : '';
+}
+
+function calcLumpsum() {
+  const age = parseInt(document.getElementById('s-l-age').value);
+  const rate = parseFloat(document.getElementById('s-l-rate').value);
+  const goalEl = document.querySelector('input[name="l-goal"]:checked');
+  const goal = goalEl ? parseInt(goalEl.value) : 30;
+
+  document.getElementById('v-l-age').textContent = age + '세';
+  document.getElementById('v-l-rate').textContent = rate + '%';
+
+  // 각 이벤트별 계산
+  let totalAsset = 0, totalGifted = 0;
+  const rows = giftRows.filter(r => r.amount > 0).map(r => {
+    const holdYears = Math.max(0, goal - r.age);
+    const fv = calcCompoundLump(r.amount, rate, holdYears);
+    totalAsset += fv;
+    totalGifted += r.amount;
+    return { ...r, holdYears, fv };
+  });
+
+  document.querySelector('#l-result .label').textContent = goal + '세 시점 예상 자산';
+  document.getElementById('l-result-amount').textContent = fmt(totalAsset);
+  document.getElementById('l-result-detail').textContent = '총 증여액 ' + fmt(totalGifted) + ' + 운용수익 ' + fmt(totalAsset - totalGifted);
+
+  const realEl = document.getElementById('l-result-real');
+  const years = goal - age;
+  if (lInflation && years > 0) {
+    realEl.style.display = '';
+    realEl.textContent = '현재 화폐가치 기준 약 ' + fmt(adjustInflation(totalAsset, years));
+  } else { realEl.style.display = 'none'; }
+
+  // 이벤트 테이블
+  const tbody = document.getElementById('l-event-tbody');
+  tbody.innerHTML = rows.map(r =>
+    '<tr><td>' + r.age + '세</td><td>' + fmt(r.amount) + '</td><td>' + r.holdYears + '년</td><td style="font-weight:700;">' + fmt(r.fv) + '</td></tr>'
+  ).join('') +
+  '<tr class="total-row"><td>합계</td><td>' + fmt(totalGifted) + '</td><td></td><td>' + fmt(totalAsset) + '</td></tr>';
+
+  // 증여세 계산 (10년 단위 그룹)
+  const taxBox = document.getElementById('l-gift-tax-box');
+  const validRows = giftRows.filter(r => r.amount > 0);
+
+  if (validRows.length === 0) { taxBox.style.display = 'none'; }
+  else {
+    // 간이 계산: 10년 윈도우별 합산
+    let totalTax = 0;
+    let taxDetails = [];
+    // 그룹: 직계 존속 → 수증자 기준
+    // 단순화: 전체 이벤트를 시간순 정렬 후 10년 윈도우 체크
+    const sorted = [...validRows].sort((a, b) => a.age - b.age);
+    let prevGifts = 0;
+    let windowStart = sorted[0] ? sorted[0].age : 0;
+
+    sorted.forEach((ev, i) => {
+      // 10년 윈도우 초과 시 리셋
+      if (ev.age - windowStart >= 10) {
+        prevGifts = 0;
+        windowStart = ev.age;
+      }
+      const result = calcGiftTax(ev.amount, ev.age, prevGifts);
+      if (result.tax > 0) {
+        totalTax += result.tax;
+        taxDetails.push(ev.age + '세 ' + fmt(ev.amount) + ' 증여 → ' + result.detail + ' = 증여세 ' + fmt(result.tax));
+      } else {
+        taxDetails.push(ev.age + '세 ' + fmt(ev.amount) + ' 증여 → ' + result.detail + ' (세금 0원)');
+      }
+      prevGifts += ev.amount;
+    });
+
+    taxBox.style.display = '';
+    taxBox.className = 'warn-box' + (totalTax > 0 ? ' danger' : '');
+    taxBox.innerHTML = (totalTax > 0 ? '⚠️' : '✅') + ' 예상 증여세: <strong>' + (totalTax > 0 ? fmt(totalTax) : '0원') + '</strong><br><br>' +
+      taxDetails.join('<br>');
+  }
+
+  // 누적 자산 라인 차트
+  const labels = [], dataPrincipal = [], dataAsset = [];
+  for (let a = age; a <= goal; a++) {
+    labels.push(a + '세');
+    let cumGift = 0, cumAsset = 0;
+    validRows.forEach(ev => {
+      if (ev.age <= a) {
+        cumGift += ev.amount;
+        cumAsset += calcCompoundLump(ev.amount, rate, a - ev.age);
+      }
+    });
+    dataPrincipal.push(Math.round(cumGift));
+    dataAsset.push(Math.round(cumAsset));
+  }
+
+  if (chartL) chartL.destroy();
+  chartL = new Chart(document.getElementById('chart-lumpsum'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '평가액', data: dataAsset, borderColor: C.primary, backgroundColor: 'rgba(30,91,168,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2.5 },
+        { label: '원금', data: dataPrincipal, borderColor: C.muted, borderDash: [6, 4], tension: 0, pointRadius: 0, borderWidth: 1.5, fill: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: C.label, font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', padding: 16 } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw) } }
+      },
+      scales: {
+        x: { ticks: { color: C.muted, font: { size: 10 }, maxTicksLimit: 10 }, grid: { color: C.grid } },
+        y: { ticks: { color: C.muted, font: { size: 10 }, callback: v => fmt(v) }, grid: { color: C.grid } }
+      }
+    }
+  });
+
+  saveState();
+}
+
+/* ─── 상태 저장/복원 ─── */
+function saveState() {
+  try {
+    const state = {
+      mAge: document.getElementById('s-m-age').value,
+      mMonthly: document.getElementById('s-m-monthly').value,
+      mRate: document.getElementById('s-m-rate').value,
+      mGoal: document.querySelector('input[name="m-goal"]:checked')?.value || '30',
+      lAge: document.getElementById('s-l-age').value,
+      lRate: document.getElementById('s-l-rate').value,
+      lGoal: document.querySelector('input[name="l-goal"]:checked')?.value || '30',
+      gifts: giftRows
+    };
+    localStorage.setItem('kidCalcState', JSON.stringify(state));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('kidCalcState');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    document.getElementById('s-m-age').value = s.mAge;
+    document.getElementById('s-m-monthly').value = s.mMonthly;
+    document.getElementById('s-m-rate').value = s.mRate;
+    const mGoalEl = document.querySelector('input[name="m-goal"][value="' + s.mGoal + '"]');
+    if (mGoalEl) mGoalEl.checked = true;
+    document.getElementById('s-l-age').value = s.lAge;
+    document.getElementById('s-l-rate').value = s.lRate;
+    const lGoalEl = document.querySelector('input[name="l-goal"][value="' + s.lGoal + '"]');
+    if (lGoalEl) lGoalEl.checked = true;
+    if (s.gifts && s.gifts.length) { giftRows = s.gifts; }
+    return true;
+  } catch(e) { return false; }
+}
+
+/* ─── URL 파라미터 ─── */
+function loadFromURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.has('age')) document.getElementById('s-m-age').value = p.get('age');
+  if (p.has('monthly')) document.getElementById('s-m-monthly').value = p.get('monthly');
+  if (p.has('rate')) document.getElementById('s-m-rate').value = p.get('rate');
+  if (p.has('goal')) {
+    const el = document.querySelector('input[name="m-goal"][value="' + p.get('goal') + '"]');
+    if (el) el.checked = true;
+  }
+}
+
+/* ─── 초기화 ─── */
+loadFromURL();
+loadState();
+
+if (giftRows.length === 0) addGiftRow(10, 2000);
+else renderGiftRows();
+
+const hash = location.hash.replace('#', '');
+if (hash === 'lumpsum') { showTab('lumpsum'); }
+calcMonthly();
+calcLumpsum();
+</script>
+</body>
+</html>
